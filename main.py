@@ -52,6 +52,8 @@ for cdate, path in data:
     changes[date.tm_year][date.tm_mon][date.tm_mday].append([path, file_dest])
     total_items += 1
 
+errors = list()
+
 # Use dictionary to move files
 with tqdm(total=total_items, desc="Moving files", unit="file") as progress_bar:
     for year in changes:
@@ -61,13 +63,19 @@ with tqdm(total=total_items, desc="Moving files", unit="file") as progress_bar:
                     progress_bar.set_description(f"Moving {os.path.basename(file_src)}")
 
                     try:
-                        shutil.copy(file_src, file_dest)
+                        shutil.move(file_src, file_dest)
                     except FileNotFoundError:  # Folder is not created
                         folder = os.path.dirname(file_dest)
                         os.makedirs(os.path.dirname(file_dest), exist_ok=True)
-                        shutil.copy(file_src, file_dest)
+                        shutil.move(file_src, file_dest)
                     except Exception as e:  # Prevent failure of subsequent files
-                        print(f"FAILURE {e}")
+                        errors.append((file_src, file_dest, e))
 
                     progress_bar.update(1)
-    progress_bar.set_description(f"Files moved: ")
+    progress_bar.set_description(f"Moving files")
+
+# Process errors
+if len(errors):
+    print(f"Errors occurred moving {len(errors)} files. Review the following files manually:")
+    for source, destination, error in errors:
+        print(f"\t{source} -> {destination}\t {error}")
