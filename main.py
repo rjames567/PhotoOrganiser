@@ -2,7 +2,7 @@
 Filename: main.py
 Author: Reuben James
 Date: 05-08-2025
-Description: Simple utility script to move a large upload of Nikon RAW images into folders organised src/YYYY/MM/DD
+Description: Utility script to move a large upload of Nikon RAW images into folders organised destination/YYYY/MM/DD
 """
 
 import datetime
@@ -12,6 +12,7 @@ from stat import S_ISREG, ST_MODE, ST_MTIME
 import os
 import time
 from collections import defaultdict
+from tqdm import tqdm
 
 print(
 """
@@ -33,6 +34,7 @@ src = input("Absolute source path: ")
 dest = input("Absolute destination path: ")
 
 move_start = datetime.datetime.strftime(datetime.datetime.now(), "%Y.%m.%d %H.%M.%S")
+# Add operation time to avoid folder name collisions with previous moves
 
 # Get all files and paths
 data = (os.path.join(src, fn) for fn in os.listdir(src))
@@ -41,27 +43,31 @@ data = ((stat[ST_MTIME], path) for stat, path in data if S_ISREG(stat[ST_MODE]))
 
 # Store in dictionary as file moving will be slow
 changes = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))  # {year: {month: {day: [[source, destination]]}}
+total_items = 0
 
 for cdate, path in data:
     date = time.gmtime(cdate)
     name = os.path.basename(path)
     file_dest = Path(dest) / str(date.tm_year) / f"{date.tm_mon:02d}" / f"{date.tm_mday:02d} - MOVED {move_start} - {name}"
     changes[date.tm_year][date.tm_mon][date.tm_mday].append([path, file_dest])
+    total_items += 1
 
 # Use dictionary to move files
-for year in changes:
-    for mon in changes[year]:
-        for day in changes[year][mon]:
-            for file_src, file_dest in changes[year][mon][day]:
-                print(f"Moving {file_src} -> {file_dest} ... ", end="")
+with tqdm(total=total_items, desc="Moving files", unit="file") as progress_bar:
+    for year in changes:
+        for mon in changes[year]:
+            for day in changes[year][mon]:
+                for file_src, file_dest in changes[year][mon][day]:
+                    progress_bar.set_description(f"Moving {os.path.basename(file_src)}")
 
-                try:
-                    shutil.move(file_src, file_dest)
-                    print(f"SUCCESS")
-                except FileNotFoundError:  # Folder is not created
-                    folder = os.path.dirname(file_dest)
-                    os.makedirs(os.path.dirname(file_dest), exist_ok=True)
-                    shutil.move(file_src, file_dest)
-                    print(f"SUCCESS")
-                except Exception as e:  # Prevent failure of subsequent files
-                    print(f"FAILURE {e}")
+                    try:
+                        shutil.copy(file_src, file_dest)
+                    except FileNotFoundError:  # Folder is not created
+                        folder = os.path.dirname(file_dest)
+                        os.makedirs(os.path.dirname(file_dest), exist_ok=True)
+                        shutil.copy(file_src, file_dest)
+                    except Exception as e:  # Prevent failure of subsequent files
+                        print(f"FAILURE {e}")
+
+                    progress_bar.update(1)
+    progress_bar.set_description(f"Files moved: ")
