@@ -14,6 +14,8 @@ import time
 from collections import defaultdict
 from tqdm import tqdm
 
+VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".flv", ".wmv", ".webm"}
+
 print(
 """
 ------------------------------------------------------------------------------------------------------------------------
@@ -48,7 +50,13 @@ total_items = 0
 for cdate, path in data:
     date = time.gmtime(cdate)
     name = os.path.basename(path)
-    file_dest = Path(dest) / str(date.tm_year) / f"{date.tm_mon:02d}" / f"{date.tm_mday:02d} - MOVED {move_start} - {name}"
+    file_dest = Path(dest) / str(date.tm_year) / f"{date.tm_mon:02d}" / f"{date.tm_mday:02d} - MOVED {move_start}"
+
+    if os.path.splitext(name)[1].lower() in VIDEO_EXTENSIONS:
+        file_dest /= "Videos"
+
+    file_dest /= name
+
     changes[date.tm_year][date.tm_mon][date.tm_mday].append([path, file_dest])
     total_items += 1
 
@@ -72,7 +80,7 @@ with tqdm(total=total_items, desc="Moving files", unit="file") as progress_bar:
                         errors.append((file_src, file_dest, e))
 
                     progress_bar.update(1)
-    progress_bar.set_description(f"Moving files")
+    progress_bar.set_description(f"Moved files")
 
 # Process errors
 if len(errors):
