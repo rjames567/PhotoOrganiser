@@ -54,6 +54,8 @@ for cdate, path in data:
 
     if os.path.splitext(name)[1].lower() in VIDEO_EXTENSIONS:
         file_dest /= "Videos"
+    if os.path.splitext(name)[1].lower() == ".dat":
+        continue
 
     file_dest /= name
 
